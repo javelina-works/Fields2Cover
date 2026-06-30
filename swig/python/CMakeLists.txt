@@ -91,22 +91,40 @@ file(
 )
 
 
-# Install target to call setup.py
-if(Python_VERSION VERSION_GREATER_EQUAL 3)
-  add_custom_target(install-python
-    DEPENDS _fields2cover_python
-    COMMAND python3 ${SETUP_PY_OUT} install --prefix=${CMAKE_INSTALL_PREFIX}
-  )
-  install(CODE "execute_process(COMMAND python3 ${SETUP_PY_OUT} install --prefix=${CMAKE_INSTALL_PREFIX})")
-elseif(Python_VERSION VERSION_GREATER_EQUAL 2)
-  add_custom_target(
-    install-python
-    DEPENDS
-      _fields2cover_python
-    COMMAND
-      python ${SETUP_PY_OUT} install
-  )
-  install(CODE "execute_process(COMMAND python ${SETUP_PY_OUT} install)")
+if(DEFINED SKBUILD)
+  # ---- scikit-build-core: assemble a self-contained `fields2cover` package ----
+  # Place the SWIG wrapper (as __init__.py), the extension module, and the
+  # runtime C++ libs side by side in the package dir, and resolve siblings via
+  # @loader_path. delocate (macOS) / auditwheel (Linux) then bundle the external
+  # deps (GDAL, OR-Tools, GEOS, abseil, ...) into the wheel for self-containment.
+  set_target_properties(fields2cover_python Fields2Cover steering_functions matplot
+    PROPERTIES INSTALL_RPATH "@loader_path")
+
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/fields2cover.py"
+    DESTINATION fields2cover RENAME __init__.py)
+  install(TARGETS fields2cover_python
+    LIBRARY DESTINATION fields2cover)
+  install(TARGETS Fields2Cover steering_functions matplot
+    LIBRARY DESTINATION fields2cover
+    RUNTIME DESTINATION fields2cover)
+else()
+  # Legacy: copy the compiled module into site-packages via setup.py.
+  if(Python_VERSION VERSION_GREATER_EQUAL 3)
+    add_custom_target(install-python
+      DEPENDS _fields2cover_python
+      COMMAND python3 ${SETUP_PY_OUT} install --prefix=${CMAKE_INSTALL_PREFIX}
+    )
+    install(CODE "execute_process(COMMAND python3 ${SETUP_PY_OUT} install --prefix=${CMAKE_INSTALL_PREFIX})")
+  elseif(Python_VERSION VERSION_GREATER_EQUAL 2)
+    add_custom_target(
+      install-python
+      DEPENDS
+        _fields2cover_python
+      COMMAND
+        python ${SETUP_PY_OUT} install
+    )
+    install(CODE "execute_process(COMMAND python ${SETUP_PY_OUT} install)")
+  endif()
 endif()
 
 

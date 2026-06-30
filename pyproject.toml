@@ -1,0 +1,44 @@
+# Root PEP 517 build for the Fields2Cover Python wheel.
+#
+# Replaces the legacy "CMake copies the .so into site-packages via setup.py"
+# flow with scikit-build-core, so `pip wheel .` / `uv pip install .` drive the
+# CMake build and assemble a real wheel. See swig/python/CMakeLists.txt for the
+# SKBUILD-guarded package layout, and _local/ for the packaging plan.
+[build-system]
+requires = ["scikit-build-core>=0.10", "swig>=4.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "fields2cover"
+version = "2.1.0"
+description = "Robust and efficient coverage paths for autonomous agricultural vehicles"
+readme = "README.rst"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Wageningen University", email = "gonzalo.miermunoz@wur.nl" }]
+keywords = ["coverage path planning", "agriculture", "robotics", "fields2cover"]
+classifiers = [
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Fields2Cover/Fields2Cover"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+build-dir = "build/skbuild/{wheel_tag}"
+wheel.license-files = ["LICENSE"]
+
+# Native deps (GDAL, OR-Tools, GEOS, ...) are discovered from the system.
+# On macOS/Homebrew this is `brew --prefix` (/opt/homebrew). The build also
+# needs the Homebrew lib/include dirs on the toolchain path for the hardcoded
+# `-lgeos_c`; export LIBRARY_PATH / CPATH when invoking the build (see _local/).
+[tool.scikit-build.cmake.define]
+BUILD_PYTHON = "ON"
+BUILD_TUTORIALS = "OFF"
+BUILD_TESTING = "OFF"
+BUILD_DOC = "OFF"
+ALLOW_PARALLELIZATION = "OFF"
+CMAKE_PREFIX_PATH = "/opt/homebrew"

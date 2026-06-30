@@ -103,6 +103,11 @@ include(cmake/F2CCompilerOptions.cmake)
 f2c_set_compiler_options(Fields2Cover)
 
 
+# Under scikit-build-core (SKBUILD defined) we produce a Python wheel only, so
+# skip the C++ development install (shared/static libs, headers, CMake package
+# config). The wheel's Python package is assembled in swig/python/CMakeLists.txt.
+if(NOT DEFINED SKBUILD)
+
 include(GNUInstallDirs)
 set(F2C_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/Fields2Cover)
 
@@ -143,6 +148,8 @@ install(EXPORT Fields2CoverTargets
   NAMESPACE Fields2Cover::
   DESTINATION ${F2C_INSTALL_CMAKEDIR}
 )
+
+endif()  # NOT SKBUILD
 
 
 #####################################################
