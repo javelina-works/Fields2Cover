@@ -5,7 +5,7 @@
 # CMake build and assemble a real wheel. See swig/python/CMakeLists.txt for the
 # SKBUILD-guarded package layout, and _local/ for the packaging plan.
 [build-system]
-requires = ["scikit-build-core>=0.10", "swig>=4.0"]
+requires = ["scikit-build-core>=0.10", "swig>=4.0", "ninja>=1.5"]
 build-backend = "scikit_build_core.build"
 
 [project]
