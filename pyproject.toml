@@ -95,8 +95,13 @@ repair-wheel-command = "bash {project}/packaging/ci/repair_macos.sh {wheel} {des
 [tool.cibuildwheel.macos.environment]
 CMAKE_PREFIX_PATH = "$PWD/vcpkg_installed/active:$PWD/.ortools"
 ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
-LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
-CPATH = "$PWD/vcpkg_installed/active/include:$PWD/.ortools/include"
+# CPATH/LIBRARY_PATH only expose the vcpkg tree (for the hardcoded `-lgeos_c` +
+# geos_c.h). OR-Tools is consumed via find_package(ortools) (CMAKE_PREFIX_PATH +
+# ortools_DIR above), NOT the raw compiler path — its bundled zlib.h (1.3.1)
+# would otherwise shadow vcpkg's (1.3.2) during vcpkg's own libpng build (these
+# env vars leak into before-all) and trip libpng's zlib-version check.
+LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib"
+CPATH = "$PWD/vcpkg_installed/active/include"
 CMAKE_ARGS = "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON"
 DYLD_FALLBACK_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
 
@@ -115,6 +120,10 @@ repair-wheel-command = "bash {project}/packaging/ci/repair_linux.sh {wheel} {des
 [tool.cibuildwheel.linux.environment]
 CMAKE_PREFIX_PATH = "$PWD/vcpkg_installed/active:$PWD/.ortools"
 ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
-LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
+# LIBRARY_PATH exposes only the vcpkg tree at COMPILE time (for `-lgeos_c`), to
+# keep OR-Tools' bundled libz from shadowing vcpkg's during the libpng build.
+# LD_LIBRARY_PATH (repair time) keeps .ortools/lib so auditwheel can resolve the
+# excluded OR-Tools deps. OR-Tools headers/libs for F2C come via find_package.
+LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib"
 LD_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
 VCPKG_DEFAULT_BINARY_CACHE = "$PWD/.vcpkg-bincache"

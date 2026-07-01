@@ -37,14 +37,17 @@ jobs:
       # from-source GDAL/PROJ/GEOS build. macOS uses vcpkg's default archives dir;
       # Linux redirects the cache under the (bind-mounted) project so it persists
       # out of the container. Post-step saves even on failure.
-      - name: Cache vcpkg binaries
-        uses: actions/cache@v4
+      # Split restore/save so the ~20-min vcpkg build is cached even when the run
+      # FAILS (a single actions/cache step only saves on job success, so failing
+      # debug iterations would otherwise rebuild the whole GDAL/PROJ/GEOS stack
+      # every time). restore-keys falls back to the newest prior cache for this
+      # platform, so a vcpkg.json change rebuilds only the per-package delta.
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
-          # Fall back to the newest prior cache for this platform when the manifest
-          # changes, so vcpkg only rebuilds the delta (per-package ABI) instead of
-          # the whole GDAL/PROJ/GEOS stack from scratch.
           restore-keys: |
             vcpkg-${{ matrix.name }}-
 
@@ -54,6 +57,13 @@ jobs:
           # Spike: build a single Python version first for a fast green, then
           # drop this override to build the full cp39–cp313 set from pyproject.
           CIBW_BUILD: "cp312-*"
+
+      - name: Save vcpkg cache
+        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ matrix.cache_path }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
 
       - uses: actions/upload-artifact@v4
         with:

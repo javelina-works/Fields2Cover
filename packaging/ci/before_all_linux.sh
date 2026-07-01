@@ -20,10 +20,12 @@ ORTOOLS_VER="9.15.6755"
 ORTOOLS_TAG="v9.15"
 VCPKG_REF="2026.06.24"
 
-# vcpkg's bootstrap needs curl/zip/unzip/tar. The minimal manylinux_2_28 image
-# ships some but not all (it has `unzip` but not `zip`), so install the full set
-# outright rather than probing for one of them.
-(dnf install -y curl zip unzip tar) || (yum install -y curl zip unzip tar)
+# System deps for the vcpkg build on the minimal manylinux_2_28 image:
+#   curl zip unzip tar   -> vcpkg bootstrap (image has unzip but not zip)
+#   perl-IPC-Cmd, perl-Data-Dumper -> openssl's build script (pulled in via
+#     curl <- proj/gdal); base perl is present but these modules are not.
+PKGS="curl zip unzip tar perl-IPC-Cmd perl-Data-Dumper"
+(dnf install -y $PKGS) || (yum install -y $PKGS)
 
 arch="$(uname -m)"               # x86_64 | aarch64
 if [ "$arch" = "x86_64" ]; then
