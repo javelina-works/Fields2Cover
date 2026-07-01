@@ -20,11 +20,10 @@ ORTOOLS_VER="9.15.6755"
 ORTOOLS_TAG="v9.15"
 VCPKG_REF="2026.06.24"
 
-# vcpkg needs zip/unzip (usually absent on the minimal manylinux image); the
-# gcc toolchain, cmake, ninja, git and curl are already present.
-if ! command -v unzip >/dev/null 2>&1; then
-  (yum install -y zip unzip) || (dnf install -y zip unzip)
-fi
+# vcpkg's bootstrap needs curl/zip/unzip/tar. The minimal manylinux_2_28 image
+# ships some but not all (it has `unzip` but not `zip`), so install the full set
+# outright rather than probing for one of them.
+(dnf install -y curl zip unzip tar) || (yum install -y curl zip unzip tar)
 
 arch="$(uname -m)"               # x86_64 | aarch64
 if [ "$arch" = "x86_64" ]; then

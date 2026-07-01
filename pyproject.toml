@@ -82,15 +82,9 @@ test-command = "python {project}/packaging/ci/smoke.py"
 
 [tool.cibuildwheel.macos]
 before-all = "bash {project}/packaging/ci/before_all_macos.sh {project}"
-# Bundle the slim GDAL/GEOS/PROJ closure (incl. shared libz/libbz2 they need) but
-# EXCLUDE the entire OR-Tools closure (the 241 dylibs the tarball ships:
-# libortools[_flatzinc], abseil, protobuf[-lite]/protoc, re2, utf8_*, scip,
-# soplex, highs, and the CoinOR set Cbc*/Cgl/Clp*/CoinUtils/Osi*) — those resolve
-# at runtime from the pip `ortools` wheel via @loader_path/../ortools/.libs.
-# --sanitize-rpaths drops the absolute vcpkg/OR-Tools rpaths (added below so
-# delocate can resolve @rpath deps) from the shipped binaries; @loader_path
-# entries are preserved.
-repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} --sanitize-rpaths -e libortools -e libabsl -e libprotobuf -e libprotoc -e libre2 -e libutf8 -e libscip -e libsoplex -e libhighs -e libCbc -e libCgl -e libClp -e libCoinUtils -e libOsi -w {dest_dir} -v {wheel}"
+# Bundle the slim GDAL/GEOS/PROJ closure but exclude the OR-Tools closure (see
+# packaging/ci/repair_macos.sh for the exclude list + rationale).
+repair-wheel-command = "bash {project}/packaging/ci/repair_macos.sh {wheel} {dest_dir} {delocate_archs}"
 
 # Stable paths created by before_all_macos.sh (":"-separated env-form paths).
 # CMAKE_PREFIX_PATH + LIBRARY_PATH/CPATH let CMake find the deps and satisfy the
@@ -110,11 +104,10 @@ DYLD_FALLBACK_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
 before-all = "bash {project}/packaging/ci/before_all_linux.sh {project}"
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
-# Bundle the slim GDAL/GEOS/PROJ closure; EXCLUDE the OR-Tools closure (resolved
-# at runtime from the pip `ortools` wheel via the $ORIGIN/../ortools/.libs
-# RUNPATH). No SIP on Linux, so LD_LIBRARY_PATH (below) reliably lets auditwheel
-# resolve the GDAL libs it bundles. --exclude takes SONAME globs.
-repair-wheel-command = "auditwheel repair --exclude 'libortools*' --exclude 'libabsl*' --exclude 'libprotobuf*' --exclude 'libprotoc*' --exclude 'libre2*' --exclude 'libutf8*' --exclude 'libscip*' --exclude 'libsoplex*' --exclude 'libhighs*' --exclude 'libCbc*' --exclude 'libCgl*' --exclude 'libClp*' --exclude 'libCoinUtils*' --exclude 'libOsi*' -w {dest_dir} {wheel}"
+# Bundle the slim GDAL/GEOS/PROJ closure; exclude the OR-Tools SONAMEs (see
+# packaging/ci/repair_linux.sh). LD_LIBRARY_PATH (below) lets auditwheel find the
+# vcpkg GDAL libs; no SIP on Linux so that's reliable.
+repair-wheel-command = "bash {project}/packaging/ci/repair_linux.sh {wheel} {dest_dir}"
 
 # Container paths (project is bind-mounted; $PWD is the build dir). LD_LIBRARY_PATH
 # lets auditwheel find the vcpkg GDAL libs; VCPKG_DEFAULT_BINARY_CACHE points at a

@@ -7,6 +7,7 @@
     { "name": "gdal", "default-features": false, "features": ["geos"] },
     "geos",
     "eigen3",
-    "tinyxml2"
+    "tinyxml2",
+    "libpng"
   ]
 }

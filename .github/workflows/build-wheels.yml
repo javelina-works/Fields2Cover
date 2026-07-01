@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: macos-arm64,      os: macos-14,       macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
+          - { name: macos-arm64,       os: macos-14,       macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
           - { name: manylinux-x86_64,  os: ubuntu-latest,                        cache_path: ".vcpkg-bincache" }
           - { name: manylinux-aarch64, os: ubuntu-24.04-arm,                     cache_path: ".vcpkg-bincache" }
           # Phase 3: - { name: macos-x86_64, os: macos-15, macos_target: "13.0", cache_path: "~/.cache/vcpkg/archives" }
@@ -42,6 +42,11 @@ jobs:
         with:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
+          # Fall back to the newest prior cache for this platform when the manifest
+          # changes, so vcpkg only rebuilds the delta (per-package ABI) instead of
+          # the whole GDAL/PROJ/GEOS stack from scratch.
+          restore-keys: |
+            vcpkg-${{ matrix.name }}-
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
