@@ -42,6 +42,13 @@ docs/api
 authorized_keys
 cmake_install.cmake
 
+# cibuildwheel / wheel packaging artifacts (see packaging/ci/, vcpkg.json)
+/wheelhouse/
+/vcpkg_installed/
+/.vcpkg/
+/.ortools/
+/_local/
+
 # Vim backup files
 [._]*.s[a-v][a-z]
 !*.svg  # comment out if you don't need vector files

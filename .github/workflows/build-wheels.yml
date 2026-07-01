@@ -1,0 +1,41 @@
+name: Build wheels
+
+# Self-contained Fields2Cover wheels via cibuildwheel (see pyproject.toml
+# [tool.cibuildwheel] + packaging/ci/). OR-Tools is a runtime peer-dependency;
+# the slim GDAL/GEOS/PROJ stack is built by vcpkg in the per-platform before-all
+# and bundled by the repair step.
+#
+# Phase 1: macOS arm64 only. Phases 2/3 add manylinux x86_64 and macOS x86_64
+# (commented matrix rows below). Phase 4 wires publishing to GitHub Releases.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["wheel-**"]
+
+jobs:
+  wheels:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macos-arm64, os: macos-14 }
+          # Phase 3: - { name: macos-x86_64, os: macos-13 }
+          # Phase 2: - { name: manylinux-x86_64, os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        env:
+          # Spike: build a single Python version first for a fast green, then
+          # drop this override to build the full cp39–cp313 set from pyproject.
+          CIBW_BUILD: "cp312-*"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.name }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error

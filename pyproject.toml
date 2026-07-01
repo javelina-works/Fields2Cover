@@ -5,7 +5,11 @@
 # CMake build and assemble a real wheel. See swig/python/CMakeLists.txt for the
 # SKBUILD-guarded package layout, and _local/ for the packaging plan.
 [build-system]
-requires = ["scikit-build-core>=0.10", "swig>=4.0", "ninja>=1.5"]
+requires = [
+  "scikit-build-core>=0.10", 
+  "swig>=4.0", 
+  "ninja>=1.5"
+]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -14,12 +18,9 @@ version = "2.1.0"
 description = "Robust and efficient coverage paths for autonomous agricultural vehicles"
 readme = "README.rst"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
-# Option A (thin wheel): reuse OR-Tools' coherent build from the official pip
-# wheel at runtime instead of bundling it. F2C is ABI-welded to this exact
-# version's bundled abseil/protobuf, so the pin must be exact — see _local/.
-dependencies = ["ortools==9.15.6755"]
-authors = [{ name = "Wageningen University", email = "gonzalo.miermunoz@wur.nl" }]
+authors = [
+  { name = "Wageningen University", email = "gonzalo.miermunoz@wur.nl" }
+]
 keywords = ["coverage path planning", "agriculture", "robotics", "fields2cover"]
 classifiers = [
   "License :: OSI Approved :: BSD License",
@@ -27,22 +28,69 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 
+requires-python = ">=3.9"
+# Option A (thin wheel): reuse OR-Tools' coherent build from the official pip
+# wheel at runtime instead of bundling it. F2C is ABI-welded to this exact
+# version's bundled abseil/protobuf, so the pin must be exact — see _local/.
+dependencies = [
+  "ortools==9.15.6755"
+]
+
 [project.urls]
-Homepage = "https://github.com/Fields2Cover/Fields2Cover"
+Documentation = "https://fields2cover.github.io/"
+Repository = "https://github.com/Fields2Cover/Fields2Cover"
 
 [tool.scikit-build]
 minimum-version = "0.10"
 build-dir = "build/skbuild/{wheel_tag}"
 wheel.license-files = ["LICENSE"]
 
-# Native deps (GDAL, OR-Tools, GEOS, ...) are discovered from the system.
-# On macOS/Homebrew this is `brew --prefix` (/opt/homebrew). The build also
-# needs the Homebrew lib/include dirs on the toolchain path for the hardcoded
-# `-lgeos_c`; export LIBRARY_PATH / CPATH when invoking the build (see _local/).
+# Native deps (GDAL, OR-Tools, GEOS, ...) are discovered from the system via
+# CMAKE_PREFIX_PATH, which is read from the ENVIRONMENT rather than hardcoded
+# here, so the same build works on a dev machine and in CI. CMake reads the
+# `CMAKE_PREFIX_PATH` env var as a ':'-separated list on Unix (note: ':' here,
+# unlike the ';'-separated cmake -D define). Set it per context:
+#   - Local macOS/Homebrew:  export CMAKE_PREFIX_PATH="$(brew --prefix)"
+#     (also export LIBRARY_PATH / CPATH for the hardcoded `-lgeos_c` — see _local/).
+#   - OR-Tools peer-dep build: prepend the extracted OR-Tools tarball and set
+#     `ortools_DIR` so find_package(ortools CONFIG) resolves it (see _local/).
+#   - CI (cibuildwheel): the per-platform before-all sets CMAKE_PREFIX_PATH.
 [tool.scikit-build.cmake.define]
 BUILD_PYTHON = "ON"
 BUILD_TUTORIALS = "OFF"
 BUILD_TESTING = "OFF"
 BUILD_DOC = "OFF"
 ALLOW_PARALLELIZATION = "OFF"
-CMAKE_PREFIX_PATH = "/opt/homebrew"
+
+# ---------------------------------------------------------------------------
+# cibuildwheel: build self-contained wheels in CI. See packaging/ci/ (per-
+# platform before-all scripts) and .github/workflows/build-wheels.yml.
+#
+# Strategy: OR-Tools stays a runtime PEER-DEPENDENCY on every platform — the pip
+# `ortools` wheel (pinned above) supplies its libs at import via the
+# @loader_path/../ortools/.libs rpath, so the repair step EXCLUDES the OR-Tools
+# closure. Only the slim GDAL/GEOS/PROJ stack (provisioned by the before-all via
+# vcpkg — see vcpkg.json) is bundled into the wheel.
+# ---------------------------------------------------------------------------
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
+skip = "pp* *-musllinux*"
+build-verbosity = 1
+# Import gate + OR-Tools routing smoke (genRoute) in the isolated test venv. The
+# wheel's own `ortools==` dep is installed there, so the peer-dep rpath resolves.
+test-command = "python {project}/packaging/ci/smoke.py"
+
+[tool.cibuildwheel.macos]
+before-all = "bash {project}/packaging/ci/before_all_macos.sh {project}"
+# Bundle the slim GDAL/GEOS/PROJ closure but leave the OR-Tools closure
+# (@rpath/libortools + abseil/protobuf/re2/utf8/coin) to resolve from the pip wheel.
+repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -e libortools -e libabsl -e libprotobuf -e libre2 -e libutf8 -e libscip -e libClp -e libCbc -e libCgl -e libOsi -e libCoinUtils -w {dest_dir} -v {wheel}"
+
+# Stable paths created by before_all_macos.sh. $PWD is the project dir at build
+# time (VERIFY on first CI run). ':'-separated env-form CMAKE_PREFIX_PATH;
+# LIBRARY_PATH/CPATH satisfy the hardcoded `-lgeos_c` and geos_c.h include.
+[tool.cibuildwheel.macos.environment]
+CMAKE_PREFIX_PATH = "$PWD/vcpkg_installed/active:$PWD/.ortools"
+ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
+LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
+CPATH = "$PWD/vcpkg_installed/active/include:$PWD/.ortools/include"
