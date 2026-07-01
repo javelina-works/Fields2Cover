@@ -105,3 +105,23 @@ LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
 CPATH = "$PWD/vcpkg_installed/active/include:$PWD/.ortools/include"
 CMAKE_ARGS = "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON"
 DYLD_FALLBACK_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
+
+[tool.cibuildwheel.linux]
+before-all = "bash {project}/packaging/ci/before_all_linux.sh {project}"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+# Bundle the slim GDAL/GEOS/PROJ closure; EXCLUDE the OR-Tools closure (resolved
+# at runtime from the pip `ortools` wheel via the $ORIGIN/../ortools/.libs
+# RUNPATH). No SIP on Linux, so LD_LIBRARY_PATH (below) reliably lets auditwheel
+# resolve the GDAL libs it bundles. --exclude takes SONAME globs.
+repair-wheel-command = "auditwheel repair --exclude 'libortools*' --exclude 'libabsl*' --exclude 'libprotobuf*' --exclude 'libprotoc*' --exclude 'libre2*' --exclude 'libutf8*' --exclude 'libscip*' --exclude 'libsoplex*' --exclude 'libhighs*' --exclude 'libCbc*' --exclude 'libCgl*' --exclude 'libClp*' --exclude 'libCoinUtils*' --exclude 'libOsi*' -w {dest_dir} {wheel}"
+
+# Container paths (project is bind-mounted; $PWD is the build dir). LD_LIBRARY_PATH
+# lets auditwheel find the vcpkg GDAL libs; VCPKG_DEFAULT_BINARY_CACHE points at a
+# project-relative dir so the host actions/cache step can persist vcpkg builds.
+[tool.cibuildwheel.linux.environment]
+CMAKE_PREFIX_PATH = "$PWD/vcpkg_installed/active:$PWD/.ortools"
+ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
+LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
+LD_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
+VCPKG_DEFAULT_BINARY_CACHE = "$PWD/.vcpkg-bincache"

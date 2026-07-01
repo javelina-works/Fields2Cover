@@ -46,6 +46,7 @@ cmake_install.cmake
 /wheelhouse/
 /vcpkg_installed/
 /.vcpkg/
+/.vcpkg-bincache/
 /.ortools/
 /_local/
 

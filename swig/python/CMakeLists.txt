@@ -102,8 +102,16 @@ if(DEFINED SKBUILD)
   # (excluded from delocate bundling) resolve from the installed ortools wheel's
   # `.libs/` dir at runtime. libortools then finds its own siblings via its own
   # @loader_path rpath.
+  # Resolve sibling libs from the package dir, and the OR-Tools peer-dependency
+  # from the installed pip `ortools` wheel's ortools/.libs (same relative layout
+  # on both platforms). macOS uses @loader_path; Linux (ELF) uses $ORIGIN.
+  if(APPLE)
+    set(F2C_PY_INSTALL_RPATH "@loader_path;@loader_path/../ortools/.libs")
+  else()
+    set(F2C_PY_INSTALL_RPATH "$ORIGIN;$ORIGIN/../ortools/.libs")
+  endif()
   set_target_properties(fields2cover_python Fields2Cover steering_functions matplot
-    PROPERTIES INSTALL_RPATH "@loader_path;@loader_path/../ortools/.libs")
+    PROPERTIES INSTALL_RPATH "${F2C_PY_INSTALL_RPATH}")
 
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/fields2cover.py"
     DESTINATION fields2cover RENAME __init__.py)
