@@ -1,9 +1,13 @@
-# Include python
+# Include python. Request Development.Module (extension-module headers + the
+# Python::Module target), NOT the full Development (which also needs
+# Development.Embed -> libpython, for EMBEDDING). manylinux Pythons ship no
+# libpython, so `Development` fails there; we only build an extension module, so
+# Development.Module is both sufficient and portable (macOS has it too).
 find_package(
   Python REQUIRED
   COMPONENTS
     Interpreter
-    Development
+    Development.Module
 )
 
 if(Python_VERSION VERSION_GREATER_EQUAL 3)
