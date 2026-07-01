@@ -126,4 +126,3 @@ ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
 # excluded OR-Tools deps. OR-Tools headers/libs for F2C come via find_package.
 LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib"
 LD_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
-VCPKG_DEFAULT_BINARY_CACHE = "$PWD/.vcpkg-bincache"

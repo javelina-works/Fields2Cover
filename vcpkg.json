@@ -2,9 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "fields2cover-wheel-deps",
   "version-string": "2.1.0",
-  "description": "Slim native deps for the Fields2Cover Python wheel. F2C uses GDAL only as an OGR geometry engine (ogr_geometry.h) + CRS (ogr_spatialref.h / PROJ) and calls the GEOS C API directly (geos_c.h) — it registers NO GDAL format drivers, so we drop GDAL's default features (hdf5, netcdf, postgresql, libkml, openjpeg, ...) and keep only OGR core + PROJ + GEOS. This keeps the bundled closure small enough to relocate into a wheel cleanly (Homebrew's full GDAL closure segfaults when delocated).",
+  "description": "Slim native deps for the Fields2Cover Python wheel. F2C uses GDAL only as an OGR geometry engine (ogr_geometry.h) + CRS (ogr_spatialref.h / PROJ) and calls the GEOS C API directly (geos_c.h) — it registers NO GDAL format drivers, so we drop GDAL's default features (hdf5, netcdf, postgresql, libkml, openjpeg, ...) and keep only OGR core + PROJ + GEOS. PROJ's default 'net' feature (curl -> openssl) is dropped too: F2C never downloads PROJ grids at runtime, and it only adds build weight (openssl is painful to build on manylinux). This keeps the bundled closure small enough to relocate into a wheel cleanly.",
   "dependencies": [
     { "name": "gdal", "default-features": false, "features": ["geos"] },
+    { "name": "proj", "default-features": false, "features": ["tiff"] },
     "geos",
     "eigen3",
     "tinyxml2",

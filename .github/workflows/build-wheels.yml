@@ -21,9 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # cache_path set only where vcpkg caching works today (macOS runs on the
+          # host). Linux runs in a container whose writes don't persist to the host,
+          # so its vcpkg cache is disabled until a host bind-mount is wired up
+          # (deferred). Rows without cache_path skip the cache steps.
           - { name: macos-arm64,       os: macos-14,       macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
-          - { name: manylinux-x86_64,  os: ubuntu-latest,                        cache_path: ".vcpkg-bincache" }
-          - { name: manylinux-aarch64, os: ubuntu-24.04-arm,                     cache_path: ".vcpkg-bincache" }
+          - { name: manylinux-x86_64,  os: ubuntu-latest }
+          - { name: manylinux-aarch64, os: ubuntu-24.04-arm }
           # Phase 3: - { name: macos-x86_64, os: macos-15, macos_target: "13.0", cache_path: "~/.cache/vcpkg/archives" }
     env:
       # macOS only: drives the vcpkg build (via overlay triplet) and the wheel
@@ -31,20 +35,19 @@ jobs:
       # harmless) on the Linux rows.
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      # Cache vcpkg's built binary packages so re-runs skip the ~20-40 min
-      # from-source GDAL/PROJ/GEOS build. macOS uses vcpkg's default archives dir;
-      # Linux redirects the cache under the (bind-mounted) project so it persists
-      # out of the container. Post-step saves even on failure.
-      # Split restore/save so the ~20-min vcpkg build is cached even when the run
-      # FAILS (a single actions/cache step only saves on job success, so failing
-      # debug iterations would otherwise rebuild the whole GDAL/PROJ/GEOS stack
-      # every time). restore-keys falls back to the newest prior cache for this
-      # platform, so a vcpkg.json change rebuilds only the per-package delta.
+      # Cache vcpkg's built binary packages so re-runs skip the ~20-min from-source
+      # GDAL/PROJ/GEOS build. Split restore/save (with save if: always()) so the
+      # build is cached even when the run FAILS — a single actions/cache step only
+      # saves on job success, so failing debug iterations would otherwise rebuild
+      # the whole stack every time. restore-keys falls back to the newest prior
+      # cache for this platform, so a vcpkg.json change rebuilds only the delta.
+      # Guarded on cache_path (macOS-only today — see the matrix note).
       - name: Restore vcpkg cache
         id: vcpkg-cache
-        uses: actions/cache/restore@v4
+        if: matrix.cache_path
+        uses: actions/cache/restore@v6
         with:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
@@ -59,13 +62,13 @@ jobs:
           CIBW_BUILD: "cp312-*"
 
       - name: Save vcpkg cache
-        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        if: always() && matrix.cache_path && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
         with:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
