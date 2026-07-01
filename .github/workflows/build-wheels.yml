@@ -10,25 +10,37 @@ name: Build wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: 'Upload wheels to PyPI? (0: no, 1: yes)'
+        required: true
+        default: '0'
   push:
     branches: ["wheel-**"]
 
+# cancel running jobs on new commit to PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   wheels:
-    name: ${{ matrix.name }}
+    name: Build ${{ matrix.arch }} wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # cache_path set only where vcpkg caching works today (macOS runs on the
-          # host). Linux runs in a container whose writes don't persist to the host,
-          # so its vcpkg cache is disabled until a host bind-mount is wired up
-          # (deferred). Rows without cache_path skip the cache steps.
-          - { name: macos-arm64,       os: macos-14,       macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
-          - { name: manylinux-x86_64,  os: ubuntu-latest }
-          - { name: manylinux-aarch64, os: ubuntu-24.04-arm }
-          # Phase 3: - { name: macos-x86_64, os: macos-15, macos_target: "13.0", cache_path: "~/.cache/vcpkg/archives" }
+          # `arch` drives the job display name; `name` is the stable slug used for
+          # cache keys + artifact names. cache_path is set only where vcpkg caching
+          # works today (macOS runs on the host); Linux runs in a container whose
+          # writes don't persist to the host, so its vcpkg cache is disabled until a
+          # host bind-mount is wired up (deferred). Rows without cache_path skip the
+          # cache steps.
+          - { name: macos-arm64,       arch: arm64,   os: macos-14,        macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
+          - { name: manylinux-x86_64,  arch: x86_64,  os: ubuntu-latest }
+          - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm }
+          # Phase 3: - { name: macos-x86_64, arch: x86_64, os: macos-15, macos_target: "13.0", cache_path: "~/.cache/vcpkg/archives" }
     env:
       # macOS only: drives the vcpkg build (via overlay triplet) and the wheel
       # build so bundled libs and the wheel share a deployment target. Empty (and

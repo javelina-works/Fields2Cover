@@ -9,6 +9,9 @@
     "geos",
     "eigen3",
     "tinyxml2",
-    "libpng"
+    "libpng",
+    "boost-algorithm",
+    "boost-math",
+    "boost-optional"
   ]
 }
