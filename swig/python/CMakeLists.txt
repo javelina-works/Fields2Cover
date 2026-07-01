@@ -30,9 +30,15 @@ SWIG_ADD_LIBRARY(fields2cover_python
   LANGUAGE python
   SOURCES ../${PROJECT_NAME}.i
 )
+# Link Python::Module (the FindPython target for EXTENSION modules), NOT
+# ${Python_LIBRARIES} (the full libpython, for embedding). Linking libpython into
+# an extension makes the module carry a hard dependency on a specific Python, which
+# delocate then bundles into the wheel (.dylibs/Python) — loading a second Python
+# runtime at import and segfaulting. Python::Module links no libpython and resolves
+# Python symbols from the host interpreter at load (dynamic_lookup on macOS).
 SWIG_LINK_LIBRARIES(fields2cover_python
   Fields2Cover
-  ${Python_LIBRARIES}
+  Python::Module
   ${PROJ_LIBRARY}
   ${GDAL_LIBRARIES}
 )

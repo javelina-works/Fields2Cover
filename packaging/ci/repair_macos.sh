@@ -18,10 +18,15 @@ ARCHS="${3:?delocate archs required}"
 
 # OR-Tools closure to leave unbundled (substring match on the install name).
 # NOTE: libz/libbz2 are intentionally NOT excluded — GDAL needs them bundled.
+# `Python` guards against bundling the Python framework (extension modules must
+# use the host interpreter's Python, not a bundled copy → else a 2nd Python
+# runtime segfaults at import). Should be redundant now that the SWIG module links
+# Python::Module rather than libpython, but kept as a safety net.
 EXCLUDES=(
   libortools libabsl libprotobuf libprotoc libre2 libutf8
   libscip libsoplex libhighs
   libCbc libCgl libClp libCoinUtils libOsi
+  Python
 )
 exclude_args=()
 for e in "${EXCLUDES[@]}"; do exclude_args+=(-e "$e"); done
