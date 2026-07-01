@@ -97,8 +97,13 @@ if(DEFINED SKBUILD)
   # runtime C++ libs side by side in the package dir, and resolve siblings via
   # @loader_path. delocate (macOS) / auditwheel (Linux) then bundle the external
   # deps (GDAL, OR-Tools, GEOS, abseil, ...) into the wheel for self-containment.
+  # Peer-dependency on the pip `ortools` package: F2C is built against OR-Tools'
+  # official build, so its @rpath/libortools + @rpath/libabsl_*/libprotobuf refs
+  # (excluded from delocate bundling) resolve from the installed ortools wheel's
+  # `.libs/` dir at runtime. libortools then finds its own siblings via its own
+  # @loader_path rpath.
   set_target_properties(fields2cover_python Fields2Cover steering_functions matplot
-    PROPERTIES INSTALL_RPATH "@loader_path")
+    PROPERTIES INSTALL_RPATH "@loader_path;@loader_path/../ortools/.libs")
 
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/fields2cover.py"
     DESTINATION fields2cover RENAME __init__.py)

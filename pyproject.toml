@@ -15,6 +15,10 @@ description = "Robust and efficient coverage paths for autonomous agricultural v
 readme = "README.rst"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
+# Option A (thin wheel): reuse OR-Tools' coherent build from the official pip
+# wheel at runtime instead of bundling it. F2C is ABI-welded to this exact
+# version's bundled abseil/protobuf, so the pin must be exact — see _local/.
+dependencies = ["ortools==9.15.6755"]
 authors = [{ name = "Wageningen University", email = "gonzalo.miermunoz@wur.nl" }]
 keywords = ["coverage path planning", "agriculture", "robotics", "fields2cover"]
 classifiers = [
