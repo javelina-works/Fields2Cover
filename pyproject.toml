@@ -82,15 +82,26 @@ test-command = "python {project}/packaging/ci/smoke.py"
 
 [tool.cibuildwheel.macos]
 before-all = "bash {project}/packaging/ci/before_all_macos.sh {project}"
-# Bundle the slim GDAL/GEOS/PROJ closure but leave the OR-Tools closure
-# (@rpath/libortools + abseil/protobuf/re2/utf8/coin) to resolve from the pip wheel.
-repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -e libortools -e libabsl -e libprotobuf -e libre2 -e libutf8 -e libscip -e libClp -e libCbc -e libCgl -e libOsi -e libCoinUtils -w {dest_dir} -v {wheel}"
+# Bundle the slim GDAL/GEOS/PROJ closure (incl. shared libz/libbz2 they need) but
+# EXCLUDE the entire OR-Tools closure (the 241 dylibs the tarball ships:
+# libortools[_flatzinc], abseil, protobuf[-lite]/protoc, re2, utf8_*, scip,
+# soplex, highs, and the CoinOR set Cbc*/Cgl/Clp*/CoinUtils/Osi*) — those resolve
+# at runtime from the pip `ortools` wheel via @loader_path/../ortools/.libs.
+# --sanitize-rpaths drops the absolute vcpkg/OR-Tools rpaths (added below so
+# delocate can resolve @rpath deps) from the shipped binaries; @loader_path
+# entries are preserved.
+repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} --sanitize-rpaths -e libortools -e libabsl -e libprotobuf -e libprotoc -e libre2 -e libutf8 -e libscip -e libsoplex -e libhighs -e libCbc -e libCgl -e libClp -e libCoinUtils -e libOsi -w {dest_dir} -v {wheel}"
 
-# Stable paths created by before_all_macos.sh. $PWD is the project dir at build
-# time (VERIFY on first CI run). ':'-separated env-form CMAKE_PREFIX_PATH;
-# LIBRARY_PATH/CPATH satisfy the hardcoded `-lgeos_c` and geos_c.h include.
+# Stable paths created by before_all_macos.sh (":"-separated env-form paths).
+# CMAKE_PREFIX_PATH + LIBRARY_PATH/CPATH let CMake find the deps and satisfy the
+# hardcoded `-lgeos_c`. CMAKE_INSTALL_RPATH_USE_LINK_PATH puts the vcpkg + OR-Tools
+# lib dirs on the built binaries' rpath so delocate can RESOLVE every @rpath dep
+# at repair time (macOS SIP strips DYLD_* across the shell, so rpath is the
+# reliable channel; DYLD_FALLBACK_LIBRARY_PATH is a best-effort backup).
 [tool.cibuildwheel.macos.environment]
 CMAKE_PREFIX_PATH = "$PWD/vcpkg_installed/active:$PWD/.ortools"
 ortools_DIR = "$PWD/.ortools/lib/cmake/ortools"
 LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"
 CPATH = "$PWD/vcpkg_installed/active/include:$PWD/.ortools/include"
+CMAKE_ARGS = "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON"
+DYLD_FALLBACK_LIBRARY_PATH = "$PWD/vcpkg_installed/active/lib:$PWD/.ortools/lib"

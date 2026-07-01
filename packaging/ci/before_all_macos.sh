@@ -17,7 +17,9 @@
 # Usage: before_all_macos.sh [PROJECT_DIR]   (cibuildwheel passes {project})
 set -euo pipefail
 
-PROJECT="${1:-$PWD}"
+# Resolve to an ABSOLUTE path: cibuildwheel may pass "." as {project}, and a
+# relative VCPKG_ROOT triggers vcpkg's "mismatched VCPKG_ROOT" warning.
+PROJECT="$(cd "${1:-$PWD}" && pwd)"
 cd "$PROJECT"
 
 ORTOOLS_VER="9.15.6755"          # must equal the pin in pyproject [project].dependencies
