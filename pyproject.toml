@@ -74,7 +74,7 @@ ALLOW_PARALLELIZATION = "OFF"
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel]
 build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
-skip = "pp* *-musllinux*"
+skip = "*-musllinux*"
 build-verbosity = 1
 # Import gate + OR-Tools routing smoke (genRoute) in the isolated test venv. The
 # wheel's own `ortools==` dep is installed there, so the peer-dep rpath resolves.

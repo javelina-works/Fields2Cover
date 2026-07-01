@@ -28,10 +28,18 @@ arch="$(uname -m)"               # arm64 | x86_64
 if [ "$arch" = "arm64" ]; then
   TRIPLET="arm64-osx"
   OR_ASSET="or-tools_arm64_macOS-26.2_cpp_v${ORTOOLS_VER}.tar.gz"
+  DEFAULT_TARGET="11.0"
 else
   TRIPLET="x64-osx"
   OR_ASSET="or-tools_x86_64_macOS-26.2_cpp_v${ORTOOLS_VER}.tar.gz"
+  DEFAULT_TARGET="10.13"
 fi
+
+# Deployment target: PROJ 9.8 needs std::optional::value() (macOS 10.13+); arm64
+# macOS starts at 11.0. Honor an externally set value (CI sets it so the vcpkg
+# build and the wheel build match — see packaging/ci/triplets/); else default.
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-$DEFAULT_TARGET}"
+echo "[before-all] MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET triplet=$TRIPLET"
 
 # --- OR-Tools official C++ build (build-time headers/libs only) ---
 ORTOOLS_HOME="$PROJECT/.ortools"
@@ -49,7 +57,10 @@ if [ ! -x "$VCPKG_ROOT/vcpkg" ]; then
   git clone --depth 1 --branch "$VCPKG_REF" https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
   "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 fi
-"$VCPKG_ROOT/vcpkg" install --triplet "$TRIPLET" --x-install-root="$PROJECT/vcpkg_installed"
+"$VCPKG_ROOT/vcpkg" install \
+  --triplet "$TRIPLET" \
+  --overlay-triplets="$PROJECT/packaging/ci/triplets" \
+  --x-install-root="$PROJECT/vcpkg_installed"
 
 # Stable arch-independent alias so the (static) cibuildwheel environment block
 # doesn't need to know the triplet.
