@@ -42,6 +42,14 @@ docs/api
 authorized_keys
 cmake_install.cmake
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.tox/
+*.whl
+
 # cibuildwheel / wheel packaging artifacts (see packaging/ci/, vcpkg.json)
 /wheelhouse/
 /vcpkg_installed/

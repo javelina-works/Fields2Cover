@@ -36,6 +36,15 @@ dependencies = [
   "ortools==9.15.6755"
 ]
 
+# `test` extra: deps to run the tests/python suite (numpy is used by some tests;
+# it also comes transitively via ortools). cibuildwheel installs this into the
+# isolated test venv via test-extras below.
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "numpy"
+]
+
 [project.urls]
 Documentation = "https://fields2cover.github.io/"
 Repository = "https://github.com/Fields2Cover/Fields2Cover"
@@ -76,9 +85,13 @@ ALLOW_PARALLELIZATION = "OFF"
 build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
 skip = "*-musllinux*"
 build-verbosity = 1
-# Import gate + OR-Tools routing smoke (genRoute) in the isolated test venv. The
-# wheel's own `ortools==` dep is installed there, so the peer-dep rpath resolves.
-test-command = "python {project}/packaging/ci/smoke.py"
+# Install the `test` extra (pytest + numpy) into the isolated test venv, alongside
+# the wheel and its `ortools==` dep. Then run the fast smoke (explicit genRoute
+# stage log — handy for diagnosing native crashes) followed by the full
+# tests/python suite (105 tests; covers types, path/route planning, objectives,
+# parser/data files, ...). Both hard-fail, so an OR-Tools or GDAL regression fails CI.
+test-extras = "test"
+test-command = "python {project}/packaging/ci/smoke.py && python -m pytest {project}/tests/python -q"
 
 [tool.cibuildwheel.macos]
 before-all = "bash {project}/packaging/ci/before_all_macos.sh {project}"

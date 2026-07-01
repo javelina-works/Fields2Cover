@@ -37,10 +37,13 @@ jobs:
           # writes don't persist to the host, so its vcpkg cache is disabled until a
           # host bind-mount is wired up (deferred). Rows without cache_path skip the
           # cache steps.
-          - { name: macos-arm64,       arch: arm64,   os: macos-14,        macos_target: "11.0", cache_path: "~/.cache/vcpkg/archives" }
+          - { name: macos-arm64,       arch: arm64,   os: macos-14,        macos_target: "11.0",  cache_path: "~/.cache/vcpkg/archives" }
+          # Intel Macs: macos-13 is the (free) Intel runner (macos-14/15 are arm64).
+          # Deployment target 10.15 matches OR-Tools' x86_64 macOS wheel floor
+          # (macosx_10_15), so pip can install the ortools peer-dep alongside our wheel.
+          - { name: macos-x86_64,      arch: x86_64,  os: macos-13,        macos_target: "10.15", cache_path: "~/.cache/vcpkg/archives" }
           - { name: manylinux-x86_64,  arch: x86_64,  os: ubuntu-latest }
           - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm }
-          # Phase 3: - { name: macos-x86_64, arch: x86_64, os: macos-15, macos_target: "13.0", cache_path: "~/.cache/vcpkg/archives" }
     env:
       # macOS only: drives the vcpkg build (via overlay triplet) and the wheel
       # build so bundled libs and the wheel share a deployment target. Empty (and
