@@ -136,13 +136,20 @@ if(DEFINED SKBUILD)
   # OGRSpatialReference transforms segfault. Pull it from the SAME prefix as the
   # linked libproj (CMAKE_PREFIX_PATH -> vcpkg) so the schema matches. The SWIG
   # module's %pythonbegin points PROJ_DATA at this dir.
-  find_file(F2C_PROJ_DB proj.db
-    PATHS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES share/proj NO_DEFAULT_PATH)
+  # find_file's default search includes the CMAKE_PREFIX_PATH *environment*
+  # variable (which CI/before-all sets to the vcpkg prefix) — do NOT pass
+  # `PATHS ${CMAKE_PREFIX_PATH} NO_DEFAULT_PATH`: the CMake *variable* is empty
+  # here (only the env var is set), so that searches nothing.
+  find_file(F2C_PROJ_DB proj.db PATH_SUFFIXES share/proj)
   if(F2C_PROJ_DB)
+    message(STATUS "Bundling PROJ database into wheel: ${F2C_PROJ_DB}")
     install(FILES "${F2C_PROJ_DB}" DESTINATION fields2cover/proj_data)
   else()
-    message(WARNING "proj.db not found on CMAKE_PREFIX_PATH — CRS transforms will "
-                    "segfault in the wheel. Ensure PROJ (with data) is on the prefix.")
+    # Hard-fail: a wheel without proj.db segfaults on any CRS transform, and that
+    # only shows at test time. Fail the build instead of shipping a broken wheel.
+    message(FATAL_ERROR "proj.db not found (searched CMAKE_PREFIX_PATH + system, "
+                        "suffix share/proj). CRS transforms would segfault. Ensure "
+                        "PROJ (with its data) is on CMAKE_PREFIX_PATH.")
   endif()
 else()
   # Legacy: copy the compiled module into site-packages via setup.py.
