@@ -68,10 +68,10 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
-        env:
-          # Spike: build a single Python version first for a fast green, then
-          # drop this override to build the full cp39–cp313 set from pyproject.
-          CIBW_BUILD: "cp312-*"
+        # Builds the full cp39–cp313 set per platform (from pyproject
+        # [tool.cibuildwheel].build). vcpkg builds once per platform in before-all;
+        # each Python version then just recompiles the F2C extension + runs the
+        # smoke test (which now hard-fails if OR-Tools genRoute regresses).
 
       - name: Save vcpkg cache
         if: always() && matrix.cache_path && steps.vcpkg-cache.outputs.cache-hit != 'true'

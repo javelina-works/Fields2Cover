@@ -89,3 +89,9 @@ except Exception as e:
 log("SMOKE STAGES: %s" % stages)
 result = "FULL_PASS" if "PIPELINE_PARTIAL" not in stages[-1] else "CORE_PASS_PIPELINE_PARTIAL"
 log("SMOKE RESULT: %s" % result)
+
+# Fail the build if the OR-Tools routing pipeline didn't complete — that's the
+# whole point of the peer-dependency, so a regression there must fail CI (not
+# just import/Point, which are the earlier hard asserts).
+if result != "FULL_PASS":
+    sys.exit(1)

@@ -20,11 +20,11 @@ ORTOOLS_VER="9.15.6755"
 ORTOOLS_TAG="v9.15"
 VCPKG_REF="2026.06.24"
 
-# System deps for the vcpkg build on the minimal manylinux_2_28 image:
-#   curl zip unzip tar   -> vcpkg bootstrap (image has unzip but not zip)
-#   perl-IPC-Cmd, perl-Data-Dumper -> openssl's build script (pulled in via
-#     curl <- proj/gdal); base perl is present but these modules are not.
-PKGS="curl zip unzip tar perl-IPC-Cmd perl-Data-Dumper"
+# System deps vcpkg's bootstrap needs on the minimal manylinux_2_28 image: it has
+# `unzip` but not `zip`, so install the full curl/zip/unzip/tar set outright.
+# (The perl-IPC-Cmd / perl-Data-Dumper modules were only needed to build openssl,
+# which is no longer pulled in now that PROJ's `net` feature is trimmed.)
+PKGS="curl zip unzip tar"
 (dnf install -y $PKGS) || (yum install -y $PKGS)
 
 arch="$(uname -m)"               # x86_64 | aarch64
