@@ -130,6 +130,20 @@ if(DEFINED SKBUILD)
   install(TARGETS Fields2Cover steering_functions matplot
     LIBRARY DESTINATION fields2cover
     RUNTIME DESTINATION fields2cover)
+
+  # Bundle PROJ's database so CRS coordinate transforms work in the relocated
+  # wheel: the slim PROJ ships libproj but not proj.db, and without it
+  # OGRSpatialReference transforms segfault. Pull it from the SAME prefix as the
+  # linked libproj (CMAKE_PREFIX_PATH -> vcpkg) so the schema matches. The SWIG
+  # module's %pythonbegin points PROJ_DATA at this dir.
+  find_file(F2C_PROJ_DB proj.db
+    PATHS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES share/proj NO_DEFAULT_PATH)
+  if(F2C_PROJ_DB)
+    install(FILES "${F2C_PROJ_DB}" DESTINATION fields2cover/proj_data)
+  else()
+    message(WARNING "proj.db not found on CMAKE_PREFIX_PATH — CRS transforms will "
+                    "segfault in the wheel. Ensure PROJ (with data) is on the prefix.")
+  endif()
 else()
   # Legacy: copy the compiled module into site-packages via setup.py.
   if(Python_VERSION VERSION_GREATER_EQUAL 3)
