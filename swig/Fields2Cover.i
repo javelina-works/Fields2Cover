@@ -3,6 +3,21 @@
 #pragma SWIG nowarn=315,317,320,362,503,509
 
 %module fields2cover
+
+// Point PROJ at the wheel's bundled proj.db (see swig/python/CMakeLists.txt) so
+// CRS coordinate transforms work in a relocated wheel — the slim PROJ bundles
+// libproj but not its database, and without it OGRSpatialReference transforms
+// segfault. Runs at the very top of the generated module, before _fields2cover_
+// python (and thus libproj) is loaded. setdefault so a user's own PROJ_DATA wins.
+%pythonbegin %{
+import os as _os
+_f2c_proj_data = _os.path.join(
+    _os.path.dirname(_os.path.abspath(__file__)), "proj_data")
+if _os.path.isdir(_f2c_proj_data):
+    _os.environ.setdefault("PROJ_DATA", _f2c_proj_data)
+    _os.environ.setdefault("PROJ_LIB", _f2c_proj_data)
+%}
+
  %include <std_string.i>
  %include <std_shared_ptr.i>
  %include <stdint.i>
