@@ -38,14 +38,16 @@ jobs:
       matrix:
         include:
           # `arch` drives the job display name; `name` is the stable slug used for
-          # cache keys + artifact names. cache_path is set only where vcpkg caching
-          # works today (macOS runs on the host); Linux runs in a container whose
-          # writes don't persist to the host, so its vcpkg cache is disabled until a
-          # host bind-mount is wired up (deferred). Rows without cache_path skip the
-          # cache steps.
+          # cache keys + artifact names. `cache_path` (a host dir) enables the vcpkg
+          # binary cache: macOS builds on the host and caches ~/.cache/vcpkg
+          # directly; the Linux builds run in a manylinux container, so the Build
+          # step bind-mounts `<workspace>/vcpkg-bincache` into it and
+          # before_all_linux.sh points VCPKG_DEFAULT_BINARY_CACHE at the mount, so
+          # vcpkg's archives persist back to the runner. Rows without cache_path
+          # skip the cache steps.
           - { name: macos-arm64,       arch: arm64,   os: macos-14,        macos_target: "11.0",  cache_path: "~/.cache/vcpkg/archives" }
-          - { name: manylinux-x86_64,  arch: x86_64,  os: ubuntu-latest }
-          - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm }
+          - { name: manylinux-x86_64,  arch: x86_64,  os: ubuntu-latest,    cache_path: "vcpkg-bincache" }
+          - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm, cache_path: "vcpkg-bincache" }
           # macOS x86_64 (Intel) dropped: GitHub's free Intel (macos-13) runners are
           # scarce/deprecated and stalled the queue, blocking every test job. Intel
           # users use source install / Rosetta. Re-add a macos-13 row here + in the
@@ -72,12 +74,24 @@ jobs:
           restore-keys: |
             vcpkg-${{ matrix.name }}-
 
+      # Linux only: create the host dir the container mounts for the vcpkg cache,
+      # so it's runner-owned (not root-created by docker) and actions/cache can
+      # save it. No-op on macOS.
+      - name: Pre-create vcpkg cache mount dir
+        if: matrix.cache_path && runner.os == 'Linux'
+        run: mkdir -p "${{ github.workspace }}/vcpkg-bincache"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
         env:
           # Tests run in the separate `test` job (against the uploaded artifact) so
           # a test failure never blocks the wheel from being uploaded/debuggable.
           CIBW_TEST_SKIP: "*"
+          # Linux only (macOS builds natively and ignores this): bind-mount the
+          # host vcpkg cache dir into the manylinux container at /host-vcpkg-cache,
+          # which before_all_linux.sh points VCPKG_DEFAULT_BINARY_CACHE at — so
+          # vcpkg's built archives persist back to the runner for actions/cache.
+          CIBW_CONTAINER_ENGINE: 'docker; create_args: --volume ${{ github.workspace }}/vcpkg-bincache:/host-vcpkg-cache'
 
       - name: Save vcpkg cache
         if: always() && matrix.cache_path && steps.vcpkg-cache.outputs.cache-hit != 'true'

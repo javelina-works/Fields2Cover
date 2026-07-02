@@ -48,9 +48,16 @@ fi
 
 # --- vcpkg: slim GDAL/GEOS/PROJ/Eigen3/TinyXML2 (dynamic libs for auditwheel) ---
 export VCPKG_ROOT="$PROJECT/.vcpkg"
-# Persist vcpkg's built packages under the (bind-mounted) project so the host
-# actions/cache step can save/restore them across runs.
-export VCPKG_DEFAULT_BINARY_CACHE="$PROJECT/.vcpkg-bincache"
+# vcpkg binary cache. The manylinux build runs in a container, so only a host
+# dir bind-mounted into it survives back to the runner for actions/cache to
+# persist across runs; the CI workflow mounts one at /host-vcpkg-cache. Prefer
+# that when present; otherwise fall back to a project-local dir (local/non-CI
+# runs). A populated cache skips the ~20-min from-source GDAL/PROJ/GEOS rebuild.
+if [ -d /host-vcpkg-cache ]; then
+  export VCPKG_DEFAULT_BINARY_CACHE=/host-vcpkg-cache
+else
+  export VCPKG_DEFAULT_BINARY_CACHE="$PROJECT/.vcpkg-bincache"
+fi
 mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
 if [ ! -x "$VCPKG_ROOT/vcpkg" ]; then
   echo "[before-all] bootstrapping vcpkg @ $VCPKG_REF"
