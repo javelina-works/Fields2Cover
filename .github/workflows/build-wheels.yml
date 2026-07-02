@@ -100,7 +100,7 @@ jobs:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: wheels-${{ matrix.platform.name }}
           path: dist
@@ -156,7 +156,7 @@ jobs:
     permissions:
       contents: write        # create the release + upload assets
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheels-*   # every platform's artifact
           path: dist
