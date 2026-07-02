@@ -5,8 +5,13 @@ name: Build wheels
 # the slim GDAL/GEOS/PROJ stack is built by vcpkg in the per-platform before-all
 # and bundled by the repair step.
 #
-# Phase 1: macOS arm64 only. Phases 2/3 add manylinux x86_64 and macOS x86_64
-# (commented matrix rows below). Phase 4 wires publishing to GitHub Releases.
+# Two jobs:
+#   build — cibuildwheel builds + repairs the wheels (test SKIPPED here) and
+#           ALWAYS uploads them as artifacts. So every run leaves downloadable
+#           wheels, even if the tests then fail.
+#   test  — downloads a platform's wheels and runs the smoke + full tests/python
+#           suite per Python version. Fast (no rebuild): iterate on tests without
+#           paying the ~20-min vcpkg build, and debug the actual built wheel.
 
 on:
   workflow_dispatch:
@@ -24,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  wheels:
+  build:
     name: Build ${{ matrix.arch }} wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -53,12 +58,9 @@ jobs:
       - uses: actions/checkout@v6
 
       # Cache vcpkg's built binary packages so re-runs skip the ~20-min from-source
-      # GDAL/PROJ/GEOS build. Split restore/save (with save if: always()) so the
-      # build is cached even when the run FAILS — a single actions/cache step only
-      # saves on job success, so failing debug iterations would otherwise rebuild
-      # the whole stack every time. restore-keys falls back to the newest prior
-      # cache for this platform, so a vcpkg.json change rebuilds only the delta.
-      # Guarded on cache_path (macOS-only today — see the matrix note).
+      # GDAL/PROJ/GEOS build. Split restore/save (save if: always()) so the build
+      # is cached even when the run fails. restore-keys falls back to the newest
+      # prior cache for this platform. Guarded on cache_path (macOS-only today).
       - name: Restore vcpkg cache
         id: vcpkg-cache
         if: matrix.cache_path
@@ -71,10 +73,10 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
-        # Builds the full cp39–cp313 set per platform (from pyproject
-        # [tool.cibuildwheel].build). vcpkg builds once per platform in before-all;
-        # each Python version then just recompiles the F2C extension + runs the
-        # smoke test (which now hard-fails if OR-Tools genRoute regresses).
+        env:
+          # Tests run in the separate `test` job (against the uploaded artifact) so
+          # a test failure never blocks the wheel from being uploaded/debuggable.
+          CIBW_TEST_SKIP: "*"
 
       - name: Save vcpkg cache
         if: always() && matrix.cache_path && steps.vcpkg-cache.outputs.cache-hit != 'true'
@@ -83,8 +85,46 @@ jobs:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
           if-no-files-found: error
+
+  test:
+    name: Test ${{ matrix.platform.arch }} py${{ matrix.python }}
+    needs: build
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        platform:
+          - { name: macos-arm64,       arch: arm64,   os: macos-14 }
+          - { name: macos-x86_64,      arch: x86_64,  os: macos-13 }
+          - { name: manylinux-x86_64,  arch: x86_64,  os: ubuntu-latest }
+          - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@v6      # tests/python + packaging/ci/smoke.py + data/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.platform.name }}
+          path: dist
+      - name: Install the built wheel + test deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp="cp$(echo '${{ matrix.python }}' | tr -d '.')"
+          whl=$(ls dist/fields2cover-*-"${cp}"-*.whl)
+          echo "Installing $whl"
+          python -m pip install --upgrade pip
+          python -m pip install "${whl}[test]"
+      - name: Smoke + pytest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python packaging/ci/smoke.py
+          python -m pytest tests/python -q
