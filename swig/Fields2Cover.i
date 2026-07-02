@@ -160,6 +160,24 @@ EXTEND_OPERATOR(Cells)
 
 
 %include "fields2cover/types/Strip.h"
+
+// Field::getField() returns Cells& -- a borrowed reference into the Field's
+// `field_` member. Since Fields is std::vector<Field>, `fields[0]` yields a
+// temporary Field copy, so `fields[0].getField()...` reads a reference into a
+// destroyed temporary -- a use-after-free (confirmed with AddressSanitizer;
+// surfaces as area()==0 on CPython 3.13 / macOS-arm64). Cells is a
+// shared_ptr<OGRMultiPolygon> handle, so hand Python an owned COPY of the
+// returned Cells: it co-owns the geometry (outlives the temporary Field) and
+// still mutates the same underlying geometry. C++ API unchanged; only the
+// Python marshaling of getField()'s return changes.
+%typemap(out) f2c::types::Cells & f2c::types::Field::getField %{
+  $result = SWIG_NewPointerObj(new f2c::types::Cells(*$1),
+      $descriptor(f2c::types::Cells *), SWIG_POINTER_OWN);
+%}
+%typemap(out) f2c::types::Cells const & f2c::types::Field::getField %{
+  $result = SWIG_NewPointerObj(new f2c::types::Cells(*$1),
+      $descriptor(f2c::types::Cells *), SWIG_POINTER_OWN);
+%}
 %include "fields2cover/types/Field.h"
 %ignore f2c::types::Route::addSwath;
 %include "fields2cover/types/Route.h"
