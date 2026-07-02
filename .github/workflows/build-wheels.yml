@@ -85,7 +85,7 @@ jobs:
           path: ${{ matrix.cache_path }}
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'packaging/ci/triplets/*') }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
@@ -105,10 +105,10 @@ jobs:
           - { name: manylinux-aarch64, arch: aarch64, os: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@v6      # tests/python + packaging/ci/smoke.py + data/
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: wheels-${{ matrix.platform.name }}
           path: dist
