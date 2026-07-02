@@ -168,6 +168,9 @@ jobs:
       - name: Attach wheels to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job has no git checkout, so tell gh which repo to target
+          # explicitly; otherwise it errors with "not a git repository".
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
